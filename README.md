@@ -1,70 +1,65 @@
-# Getting Started with Create React App
+# 人事手続きサポート Web アプリ
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+入社・退社・異動の手続きを支援し、収集情報の保存とスケジュール表の自動生成、タスクのプッシュ通知を行うサンプル実装です。
 
-## Available Scripts
+## 技術スタック
 
-In the project directory, you can run:
+- バックエンド: Python, Flask, SQLAlchemy, SQLite
+- フロントエンド: React + Vite
+- 通知: Web Push API（VAPIDキー設定が必要）
 
-### `npm start`
+## セットアップ
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### 1) バックエンド
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+```
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 
-### `npm test`
+# 任意: VAPID キーを環境変数で指定
+export VAPID_PUBLIC_KEY="<Your VAPID PUBLIC KEY>"
+export VAPID_PRIVATE_KEY="<Your VAPID PRIVATE KEY>"
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+python server/app.py
+# http://localhost:5000/api/health で ok が返れば起動成功
+```
 
-### `npm run build`
+データベースは `instance/app.sqlite3` に作成されます。
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 2) フロントエンド
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```
+cd frontend
+npm install
+npm run dev
+# http://localhost:5173 を開く（/api は 5000 にプロキシ）
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+ブラウザで「通知の許可」を行い、サービスワーカー登録後に `/api/webpush/public_key` から公開鍵を取得して購読します。公開鍵が空の場合は購読が無効になります。
 
-### `npm run eject`
+## 使い方
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+1. 画面上部で区分（入社/退社/異動）を選び、フォームに必要事項を入力して「登録」。
+2. 「従業員一覧」から対象を選ぶとスケジュール表が表示されます。進捗（未完了/進行中/完了）を変更可能。
+3. 「プッシュ通知を登録」で購読を保存します（従業員紐付け）。
+4. 「24時間以内の期限を通知」で、24時間以内に期日を迎えるタスクへ通知送信を試行します。
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## API 概要
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+- `POST /api/employees/onboarding` 入社登録＋タスク自動生成
+- `POST /api/employees/offboarding` 退社更新＋タスク自動生成
+- `POST /api/employees/transfer` 異動更新＋タスク自動生成
+- `GET /api/employees` / `GET /api/employees/:id` 従業員参照
+- `GET /api/employees/:id/tasks` タスク参照
+- `PATCH /api/tasks/:id` タスク更新（進捗/担当者）
+- `GET /api/webpush/public_key` VAPID 公開鍵取得
+- `POST /api/subscriptions` Push 購読保存
+- `POST /api/notify/upcoming` 期限接近タスクの通知送信（hours 指定可）
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## 注意事項
 
-## Learn More
+- Web Push 送信には VAPID キーが必要です。実運用では `pywebpush` を使い、各ブラウザの Push Service へ送信します。本リポではキー未設定時は送信しません（エラーにはしません）。
+- スケジュールの期日は一例です。自社運用に合わせ、`server/app.py` の `generate_*_tasks` を調整してください。
+- SQLite のスキーマは初回起動時に自動生成されます。必要に応じてマイグレーション導入をご検討ください（Alembic など）。
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
